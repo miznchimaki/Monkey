@@ -182,13 +182,14 @@ class Resampler(nn.Module):
         return query.unsqueeze(1).repeat(1, N, 1)
 
 
-
 class Lora_Adapter(nn.Module):
-    def __init__(self,
-                 d_model=None,
-                 out_feat=None,
-                 r=16,
-                 dropout=0.05):
+    def __init__(
+        self,
+        d_model=None,
+        out_feat=None,
+        r=16,
+        dropout=0.05
+    ):
         super().__init__()
         self.d_model = d_model
         self.out_feat = out_feat

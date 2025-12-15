@@ -1,7 +1,5 @@
-
-import logging
 import math
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -10,14 +8,10 @@ import numpy as np
 from itertools import repeat
 import collections.abc
     
-
-
 import torch
 from torch import nn
 from torch.nn import functional as F
 from torch.nn.init import trunc_normal_
-from torchvision import transforms
-from torchvision.transforms import InterpolationMode
 from functools import partial
 
 from itertools import repeat
@@ -61,7 +55,6 @@ def extend_tuple(x, n):
     return x + (x[-1],) * pad_n
 
 
-
 class DropPath(nn.Module):
     """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
     """
@@ -75,6 +68,7 @@ class DropPath(nn.Module):
 
     def extra_repr(self):
         return f'drop_prob={round(self.drop_prob,3):0.3f}'
+
 
 class Mlp(nn.Module):
     """ MLP as used in Vision Transformer, MLP-Mixer and related networks
@@ -112,11 +106,9 @@ class Mlp(nn.Module):
         x = self.act(x)
         x = self.drop1(x)
 
-        
         x = self.fc2(x)
         x = self.scale*x
         return x
-
 
 
 # https://github.com/facebookresearch/mae/blob/efb2a8062c206524e35e47d04501ed4f544c0ae8/util/pos_embed.py#L20
@@ -184,6 +176,8 @@ to_2tuple = _ntuple(2)
 to_3tuple = _ntuple(3)
 to_4tuple = _ntuple(4)
 _int_or_tuple_2_t = Union[int, Tuple[int, int]]
+
+
 def window_partition(
         x: torch.Tensor,
         window_size: Tuple[int, int],
@@ -278,11 +272,11 @@ class PatchMerging(nn.Module):
         x = self.norm_2(x)
         x = self.reduction_2(x)
 
-
-        x = x.view(B,-1,C)
-        x = x.permute(0,2,1) #bxcxl
-        x = x.reshape(x.shape[0],x.shape[1],G//2,G//2) #bxcxl
+        x = x.view(B, -1, C)
+        x = x.permute(0, 2, 1) #bxcxl
+        x = x.reshape(x.shape[0], x.shape[1], G//2, G//2) #bxcxl
         return x
+
 
 class WindowAttention(nn.Module):
     """ Window based multi-head self attention (W-MSA) module with relative position bias.
@@ -349,8 +343,6 @@ class WindowAttention(nn.Module):
         qkv = self.qkv(x).reshape(B_, N, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
         q, k, v = qkv.unbind(0)
 
-
-        
         q = q * self.scale
         attn = q @ k.transpose(-2, -1)
         attn = attn + self._get_rel_pos_bias()
@@ -438,7 +430,6 @@ class SwinTransformerBlock(nn.Module):
         )
         self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 
-        
         attn_mask = self.calc_attn(self.input_resolution)
         self.register_buffer("attn_mask", attn_mask, persistent=False)
 
@@ -463,7 +454,6 @@ class SwinTransformerBlock(nn.Module):
         attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
         attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))
         return attn_mask
-
 
     def _calc_window_shift(self, target_window_size, target_shift_size) -> Tuple[Tuple[int, int], Tuple[int, int]]:
         target_window_size = to_2tuple(target_window_size)
@@ -492,7 +482,6 @@ class SwinTransformerBlock(nn.Module):
         x_windows = window_partition(shifted_x, self.window_size)  # nW*B, window_size, window_size, C
         x_windows = x_windows.view(-1, self.window_area, C)  # nW*B, window_size*window_size, C
 
-
         attn_mask = self.attn_mask
 
         # W-MSA/SW-MSA
@@ -511,7 +500,6 @@ class SwinTransformerBlock(nn.Module):
         return x
 
     def forward(self, x):
-        
         x = self.downsample(x)
         B, H, W, C = x.shape
         # C = hidden_dim
@@ -520,6 +508,7 @@ class SwinTransformerBlock(nn.Module):
         x = self.drop_path2(self.mlp(self.norm2(x)))
         x = x.reshape(B, H, W, self.dim)
         return x
+
 
 def get_abs_pos(abs_pos, tgt_size):
     # abs_pos: L, C
@@ -568,7 +557,14 @@ class CrossWindowAttention(nn.Module):
 
         self.position_embedding = nn.Parameter(torch.zeros(1, self.image_size[0]*self.image_size[1], 1664))
         trunc_normal_(self.position_embedding, std=.02)
-        self.shift_attn = SwinTransformerBlock(dim=dim,hidden_dim=hidden_dim,input_resolution = self.image_size,num_heads=head,window_size =self.window_size,shift_size=self.shift_size)
+        self.shift_attn = SwinTransformerBlock(
+            dim=dim,
+            hidden_dim=hidden_dim,
+            input_resolution=self.image_size,
+            num_heads=head,
+            window_size =self.window_size,
+            shift_size=self.shift_size
+        )
 
     def forward(self, x,image_size):
         # X bxcxgxg
@@ -588,6 +584,3 @@ class CrossWindowAttention(nn.Module):
         x = x.reshape(x.shape[0],x.shape[1],G,G) #bxcxl
         return x
  
-
-
-        

@@ -1,8 +1,14 @@
-from einops import rearrange, repeat
+from einops import rearrange
 from einops_exts import rearrange_many
 from torch import einsum
 import torch.nn as nn
 import torch
+from einops import rearrange, repeat
+from einops_exts import rearrange_many
+from torch import einsum
+from monkey_model.text_monkey.merge import *
+
+
 class LayerNorm(nn.LayerNorm):
     """Subclass torch's LayerNorm to handle fp16."""
 
@@ -10,12 +16,6 @@ class LayerNorm(nn.LayerNorm):
         orig_type = x.dtype
         ret = super().forward(x.type(torch.float32))
         return ret.type(orig_type)
-#Resample model
-from einops import rearrange, repeat
-from einops_exts import rearrange_many
-from torch import einsum
-from monkey_model.text_monkey.merge import *
-
 
 class FeedForward(nn.Module):
     """ MLP as used in Vision Transformer, MLP-Mixer and related networks
@@ -55,19 +55,17 @@ class FeedForward(nn.Module):
         return x
 
 
-
-
 class Block(nn.Module):
     def __init__(self, input_size,output_size):
         super().__init__()
         self.fc_1 = nn.Linear(input_size, output_size)
         self.norm = nn.LayerNorm(output_size)
 
-
     def forward(self, x):
         x = self.fc_1(x)
         x = self.norm(x)
         return x
+
 
 class PerceiverAttention(nn.Module):
     def __init__(self, *, dim, dim_head=64, heads=8):
@@ -142,4 +140,3 @@ class PerceiverResampler(nn.Module):
             down_latent = attn(down_x, down_latent) 
             latents = ff(down_latent) + latents
         return latents
-    

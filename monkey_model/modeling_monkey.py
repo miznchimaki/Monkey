@@ -1,41 +1,20 @@
-import importlib
-import math
-from typing import TYPE_CHECKING, Optional, Tuple, Union, Callable, List, Any, Generator
-
+from typing import Optional, Tuple
 import torch
-import torch.nn.functional as F
-import torch.utils.checkpoint
-from torch.cuda.amp import autocast
-
-from torch.nn import CrossEntropyLoss
-from transformers import PreTrainedTokenizer, GenerationConfig, StoppingCriteriaList
-from transformers.generation.logits_process import LogitsProcessorList
-
-if TYPE_CHECKING:
-    from transformers.generation.streamers import BaseStreamer
-from transformers.generation.utils import GenerateOutput
-from transformers.modeling_outputs import (
-    BaseModelOutputWithPast,
-    CausalLMOutputWithPast,
-)
-from transformers.modeling_utils import PreTrainedModel
 from transformers.utils import logging
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-try:
-    from einops import rearrange
-except ImportError:
-    rearrange = None
 from torch import nn
-from monkey_model.modeling_qwen import QWenModel,QWenPreTrainedModel,QWenLMHeadModel
+from monkey_model.modeling_qwen import QWenModel, QWenLMHeadModel
+
+
 SUPPORT_CUDA = torch.cuda.is_available()
 SUPPORT_BF16 = SUPPORT_CUDA and torch.cuda.is_bf16_supported()
 SUPPORT_FP16 = SUPPORT_CUDA and torch.cuda.get_device_capability(0)[0] >= 7
 logger = logging.get_logger(__name__)
+
+
 class MonkeyModel(QWenModel):
     def __init__(self, config):
         super().__init__(config)
-    
-    
+
     def forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
@@ -67,16 +46,17 @@ class MonkeyModel(QWenModel):
             lora_idx = 0 
             for col in windows:
                 for image_patch in col:
-                    patch_list.append(self.visual(image_patch,idx=lora_idx))
+                    patch_list.append(self.visual(image_patch, idx=lora_idx))
                     lora_idx += 1
-                    
+
             global_feat = self.visual(images_448)
             local_feat = torch.cat(patch_list,dim=1)
             images = torch.cat([local_feat,global_feat],dim=1)
             assert images.shape[0] == len(images)
         else:
             images = None
-        return super().forward(input_ids,
+        return super().forward(
+            input_ids,
             past_key_values,
             attention_mask,
             token_type_ids,
@@ -88,9 +68,8 @@ class MonkeyModel(QWenModel):
             output_attentions,
             output_hidden_states,
             return_dict,
-            images)
-    
-
+            images
+        )
 
 
 class MonkeyLMHeadModel(QWenLMHeadModel):
@@ -141,5 +120,3 @@ class MonkeyLMHeadModel(QWenLMHeadModel):
             self.transformer.half()
             self.lm_head.half()
         self.post_init()
-
-

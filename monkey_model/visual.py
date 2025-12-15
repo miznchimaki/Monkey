@@ -9,7 +9,7 @@ import requests
 from io import BytesIO
 from functools import partial
 from PIL import Image
-from typing import Callable, Optional, Sequence, Tuple, List
+from typing import Callable, Optional, List
 import numpy as np
 
 import torch
@@ -18,6 +18,8 @@ from torch.nn import functional as F
 from torch.nn.init import trunc_normal_
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
+
+
 def reconstruct_matrix(windows):
     temp =[]
     for col in windows:
@@ -27,7 +29,7 @@ def reconstruct_matrix(windows):
 
 
 def sliding_window(matrix, window_size, stride):
-    b,c,height, width = matrix.shape
+    _, _, height, width = matrix.shape
     window_rows = (height - window_size[0]) // stride + 1
     window_cols = (width - window_size[1]) // stride + 1
     windows = []
@@ -38,6 +40,7 @@ def sliding_window(matrix, window_size, stride):
             windows_col.append(window)
         windows.append(windows_col)
     return windows
+
 
 def get_abs_pos(abs_pos, tgt_size):
     # abs_pos: L, C
@@ -56,6 +59,7 @@ def get_abs_pos(abs_pos, tgt_size):
         ).permute(0, 2, 3, 1).flatten(0, 2).to(dtype=dtype)
     else:
         return abs_pos
+
 
 # https://github.com/facebookresearch/mae/blob/efb2a8062c206524e35e47d04501ed4f544c0ae8/util/pos_embed.py#L20
 def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False):
@@ -175,7 +179,6 @@ class Resampler(nn.Module):
         return query.unsqueeze(1).repeat(1, N, 1)
 
 
-
 class Lora_Adapter(nn.Module):
     def __init__(self,
                  d_model=None,
@@ -188,7 +191,6 @@ class Lora_Adapter(nn.Module):
         self.r = r
 
         self.lora_scale = nn.Parameter(torch.ones(1))
-
 
         self.lora_a = nn.Linear(self.d_model, self.r,bias=False)
         self.lora_b = nn.Linear(self.r, self.out_feat,bias=False)
@@ -219,8 +221,15 @@ class VisualAttention(nn.Module):
     and returns output of the same size.
     """
 
-    def __init__(self, embed_dim, num_heads,
-                 bias=True, kdim=None, vdim=None,lora_repeat_num=4):
+    def __init__(
+        self,
+        embed_dim,
+        num_heads,
+        bias=True,
+        kdim=None,
+        vdim=None,
+        lora_repeat_num=4
+    ):
         super(VisualAttention, self).__init__()
         self.embed_dim = embed_dim
         self.kdim = kdim if kdim is not None else embed_dim
@@ -349,7 +358,6 @@ class VisualAttentionBlock(nn.Module):
             self.mlp_lora.append(Lora_Adapter(d_model=d_model,out_feat=d_model,r=32))
         self.mlp_lora = nn.ModuleList(self.mlp_lora)
 
-
     def attention(
             self,
             q_x: torch.Tensor,
@@ -379,7 +387,6 @@ class VisualAttentionBlock(nn.Module):
         residual = x 
         x = x + self.mlp(self.ln_2(x))
 
-        
         if idx == None:
             pass
         else:
@@ -389,14 +396,14 @@ class VisualAttentionBlock(nn.Module):
 
 class TransformerBlock(nn.Module):
     def __init__(
-            self,
-            width: int,
-            layers: int,
-            heads: int,
-            mlp_ratio: float = 4.0,
-            act_layer: Callable = nn.GELU,
-            norm_layer: Callable = nn.LayerNorm,
-            lora_repeat_num=4
+        self,
+        width: int,
+        layers: int,
+        heads: int,
+        mlp_ratio: float = 4.0,
+        act_layer: Callable = nn.GELU,
+        norm_layer: Callable = nn.LayerNorm,
+        lora_repeat_num=4
     ):
         super().__init__()
         self.width = width
@@ -404,7 +411,13 @@ class TransformerBlock(nn.Module):
 
         self.resblocks = nn.ModuleList([
             VisualAttentionBlock(
-                width, heads, mlp_ratio, act_layer=act_layer, norm_layer=norm_layer,lora_repeat_num=lora_repeat_num)
+                width,
+                heads,
+                mlp_ratio,
+                act_layer=act_layer,
+                norm_layer=norm_layer,
+                lora_repeat_num=lora_repeat_num
+            )
             for _ in range(layers)
         ])
 
@@ -475,7 +488,6 @@ class VisionTransformer(nn.Module):
             lora_repeat_num=lora_repeat_num
         )
 
-        
         self.attn_pool = Resampler(
             grid_size=int(math.sqrt(n_queries)),
             embed_dim=output_dim,
@@ -524,9 +536,10 @@ class VisionTransformer(nn.Module):
 
 
         images_448 = F.interpolate(images, size=(448,448), mode='bicubic')
-        return windows,images_448
+        return windows, images_448
+
+
 if __name__ == "__main__":
-    pass
     visual = VisionTransformer(
         image_size= 896,
         patch_size= 14,
@@ -538,8 +551,7 @@ if __name__ == "__main__":
 
     img = torch.randn(1,3,896,896)
 
-
-    from peft import LoraConfig, get_peft_model, prepare_model_for_int8_training, TaskType
+    from peft import LoraConfig, get_peft_model
 
     # Define LoRA Config
     lora_config = LoraConfig(
@@ -557,4 +569,3 @@ if __name__ == "__main__":
     model.print_trainable_parameters()
     print(model)
     print(visual)
-
