@@ -46,6 +46,8 @@ def sliding_window(matrix, window_size, stride):
             windows_col.append(window)
         windows.append(windows_col)
     return windows
+
+
 def get_abs_pos(abs_pos, tgt_size):
     # abs_pos: L, C
     # tgt_size: M
@@ -63,6 +65,7 @@ def get_abs_pos(abs_pos, tgt_size):
         ).permute(0, 2, 3, 1).flatten(0, 2).to(dtype=dtype)
     else:
         return abs_pos
+
 
 # https://github.com/facebookresearch/mae/blob/efb2a8062c206524e35e47d04501ed4f544c0ae8/util/pos_embed.py#L20
 def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False):
@@ -196,7 +199,6 @@ class Lora_Adapter(nn.Module):
         self.r = r
 
         self.lora_scale = nn.Parameter(torch.ones(1))
-
 
         self.lora_a = nn.Linear(self.d_model, self.r,bias=False)
         self.lora_b = nn.Linear(self.r, self.out_feat,bias=False)
@@ -357,7 +359,6 @@ class VisualAttentionBlock(nn.Module):
             self.mlp_lora.append(Lora_Adapter(d_model=d_model,out_feat=d_model,r=32))
         self.mlp_lora = nn.ModuleList(self.mlp_lora)
 
-
     def attention(
             self,
             q_x: torch.Tensor,
@@ -415,18 +416,25 @@ class TransformerBlock(nn.Module):
         self.add_window = add_window
         self.window_all = window_all
 
-        self.window_pos = [2,6,24,46]
-        self.window_dim = [128,256,512,1024]
-        self.window_head = [4,8,16,32]
+        self.window_pos = [2, 6, 24, 46]
+        self.window_dim = [128, 256, 512, 1024]
+        self.window_head = [4, 8, 16, 32]
         if isinstance(image_size, tuple) or isinstance(image_size, list):
             image_size = tuple(size // 14 for size in image_size)
         else:
-            image_size = image_size//14
+            image_size = image_size // 14
 
         if self.add_window:
             self.window_attention = []
             for idx in range(len(self.window_pos)):
-                self.window_attention.append(CrossWindowAttention(image_size=image_size,dim=1664,hidden_dim=self.window_dim[idx],head=self.window_head[idx]))
+                self.window_attention.append(
+                    CrossWindowAttention(
+                        image_size=image_size,
+                        dim=1664,
+                        hidden_dim=self.window_dim[idx],
+                        head=self.window_head[idx]
+                    )
+                )
             self.window_attention = nn.ModuleList(self.window_attention)
    
         self.resblocks = nn.ModuleList([
@@ -607,7 +615,6 @@ class VisionTransformer(nn.Module):
             x = x @ self.proj
         return x
 
-
     def encode(self, image_paths: List[str],lora_idx=None,input_image=None):
         if input_image is None:
             images = []
@@ -644,7 +651,3 @@ class VisionTransformer(nn.Module):
             return torch.cat([local_feat,global_feat],dim=1)
         else:
             return local_feat
-
-
-
-

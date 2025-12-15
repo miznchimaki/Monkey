@@ -180,11 +180,13 @@ class Resampler(nn.Module):
 
 
 class Lora_Adapter(nn.Module):
-    def __init__(self,
-                 d_model=None,
-                 out_feat=None,
-                 r=16,
-                 dropout=0.05):
+    def __init__(
+        self,
+        d_model=None,
+        out_feat=None,
+        r=16,
+        dropout=0.05
+    ):
         super().__init__()
         self.d_model = d_model
         self.out_feat = out_feat
@@ -259,7 +261,7 @@ class VisualAttention(nn.Module):
         self.out_proj_lora = nn.ModuleList(self.out_proj_lora)
         self.norm_factor = math.sqrt(self.hidden_size_per_attention_head)
 
-    def forward(self, query, key, value, attn_mask = None,idx = None):
+    def forward(self, query, key, value, attn_mask = None, idx = None):
         # query/key/value: [sq, b, h]
         sq, b, _ = query.size()
 
@@ -330,14 +332,14 @@ class VisualAttention(nn.Module):
 
 class VisualAttentionBlock(nn.Module):
     def __init__(
-            self,
-            d_model: int,
-            n_head: int,
-            mlp_ratio: float = 4.0,
-            act_layer: Callable = nn.GELU,
-            norm_layer: Callable = nn.LayerNorm,
-            is_cross_attention: bool = False,
-            lora_repeat_num = 4,
+        self,
+        d_model: int,
+        n_head: int,
+        mlp_ratio: float = 4.0,
+        act_layer: Callable = nn.GELU,
+        norm_layer: Callable = nn.LayerNorm,
+        is_cross_attention: bool = False,
+        lora_repeat_num = 4,
     ):
         super().__init__()
 
@@ -359,12 +361,12 @@ class VisualAttentionBlock(nn.Module):
         self.mlp_lora = nn.ModuleList(self.mlp_lora)
 
     def attention(
-            self,
-            q_x: torch.Tensor,
-            k_x: Optional[torch.Tensor] = None,
-            v_x: Optional[torch.Tensor] = None,
-            attn_mask: Optional[torch.Tensor] = None,
-            idx = None
+        self,
+        q_x: torch.Tensor,
+        k_x: Optional[torch.Tensor] = None,
+        v_x: Optional[torch.Tensor] = None,
+        attn_mask: Optional[torch.Tensor] = None,
+        idx = None
     ):
         k_x = k_x if k_x is not None else q_x
         v_x = v_x if v_x is not None else q_x
@@ -373,12 +375,12 @@ class VisualAttentionBlock(nn.Module):
         return self.attn(q_x, k_x, v_x, attn_mask=attn_mask,idx=idx)
 
     def forward(
-            self,
-            q_x: torch.Tensor,
-            k_x: Optional[torch.Tensor] = None,
-            v_x: Optional[torch.Tensor] = None,
-            attn_mask: Optional[torch.Tensor] = None,
-            idx = None
+        self,
+        q_x: torch.Tensor,
+        k_x: Optional[torch.Tensor] = None,
+        v_x: Optional[torch.Tensor] = None,
+        attn_mask: Optional[torch.Tensor] = None,
+        idx = None
     ):
         k_x = self.ln_1_kv(k_x) if hasattr(self, "ln_1_kv") and k_x is not None else None
         v_x = self.ln_1_kv(v_x) if hasattr(self, "ln_1_kv") and v_x is not None else None
@@ -436,17 +438,17 @@ class TransformerBlock(nn.Module):
 class VisionTransformer(nn.Module):
 
     def __init__(
-            self,
-            image_size: int,
-            patch_size: int,
-            width: int,
-            layers: int,
-            heads: int,
-            mlp_ratio: float,
-            n_queries: int = 256,
-            output_dim: int = 512,
-            lora_repeat_num: int = 4,
-            **kwargs
+        self,
+        image_size: int,
+        patch_size: int,
+        width: int,
+        layers: int,
+        heads: int,
+        mlp_ratio: float,
+        n_queries: int = 256,
+        output_dim: int = 512,
+        lora_repeat_num: int = 4,
+        **kwargs
     ):
         super().__init__()
         if isinstance(image_size, tuple) or isinstance(image_size, list):
@@ -498,7 +500,7 @@ class VisionTransformer(nn.Module):
         self.ln_post = norm_layer(output_dim)
         self.proj = nn.Parameter((output_dim** -0.5) * torch.randn(output_dim, output_dim))
 
-    def forward(self, x: torch.Tensor,idx=None):
+    def forward(self, x: torch.Tensor, idx=None):
         x = x.to(
             dtype=self.transformer.get_cast_dtype(),
             device=self.transformer.get_cast_device(),
@@ -533,7 +535,6 @@ class VisionTransformer(nn.Module):
         images = torch.stack(images, dim=0)
         B,C,H,W = images.shape
         windows = sliding_window(images,window_size=(448,448),stride=448)
-
 
         images_448 = F.interpolate(images, size=(448,448), mode='bicubic')
         return windows, images_448
